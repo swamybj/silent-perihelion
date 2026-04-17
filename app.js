@@ -487,7 +487,7 @@ function renderStrategyResults(data) {
     }], {
         ...PLOTLY_LAYOUT,
         title: { text: "Profit/Loss at Expiration", font: { size: 13, color: "#e8eaed" } },
-        xaxis: { ...PLOTLY_LAYOUT.xaxis, title: "Underlying Price" },
+        xaxis: { ...PLOTLY_LAYOUT.xaxis, title: "Underlying Price", type: "linear" },
         yaxis: { ...PLOTLY_LAYOUT.yaxis, title: "P&L ($)" },
         shapes: [{
             type: "line", x0: payoff.prices[0], x1: payoff.prices[payoff.prices.length - 1],
@@ -661,7 +661,7 @@ function renderBacktestResults(data) {
     }], {
         ...PLOTLY_LAYOUT,
         title: { text: "Cumulative P&L", font: { size: 13, color: "#e8eaed" } },
-        xaxis: { ...PLOTLY_LAYOUT.xaxis, title: "Date" },
+        xaxis: { ...PLOTLY_LAYOUT.xaxis, title: "Date", type: "date" },
         yaxis: { ...PLOTLY_LAYOUT.yaxis, title: "P&L ($)" },
     }, PLOTLY_CONFIG);
 
@@ -678,7 +678,7 @@ function renderBacktestResults(data) {
     }], {
         ...PLOTLY_LAYOUT,
         title: { text: "P&L Distribution", font: { size: 13, color: "#e8eaed" } },
-        xaxis: { ...PLOTLY_LAYOUT.xaxis, title: "P&L ($)" },
+        xaxis: { ...PLOTLY_LAYOUT.xaxis, title: "P&L ($)", type: "linear" },
         yaxis: { ...PLOTLY_LAYOUT.yaxis, title: "Frequency" },
         bargap: 0.05,
     }, PLOTLY_CONFIG);
@@ -830,7 +830,7 @@ function renderDistribution(data) {
     }], {
         ...PLOTLY_LAYOUT,
         title: { text: "Daily Return Distribution", font: { size: 13, color: "#e8eaed" } },
-        xaxis: { ...PLOTLY_LAYOUT.xaxis, title: "Daily Return (%)" },
+        xaxis: { ...PLOTLY_LAYOUT.xaxis, title: "Daily Return (%)", type: "linear" },
         yaxis: { ...PLOTLY_LAYOUT.yaxis, title: "Frequency" },
         bargap: 0.05,
     }, PLOTLY_CONFIG);
@@ -848,7 +848,7 @@ function renderDistribution(data) {
     }], {
         ...PLOTLY_LAYOUT,
         title: { text: "Weekly Return Distribution", font: { size: 13, color: "#e8eaed" } },
-        xaxis: { ...PLOTLY_LAYOUT.xaxis, title: "Weekly Return (%)" },
+        xaxis: { ...PLOTLY_LAYOUT.xaxis, title: "Weekly Return (%)", type: "linear" },
         yaxis: { ...PLOTLY_LAYOUT.yaxis, title: "Frequency" },
         bargap: 0.05,
     }, PLOTLY_CONFIG);
@@ -1045,7 +1045,7 @@ function renderTechnicalAnalysis(data) {
     Plotly.newPlot("ta-price-chart", priceTraces, {
         ...PLOTLY_LAYOUT,
         title: { text: `${data.name || data.symbol} — Price & SMA`, font: { size: 13, color: "#e8eaed" } },
-        xaxis: { ...PLOTLY_LAYOUT.xaxis },
+        xaxis: { ...PLOTLY_LAYOUT.xaxis, type: "date" },
         yaxis: { ...PLOTLY_LAYOUT.yaxis, title: "Price ($)" },
         shapes: fibShapes,
     }, PLOTLY_CONFIG);
@@ -1060,6 +1060,7 @@ function renderTechnicalAnalysis(data) {
     }], {
         ...PLOTLY_LAYOUT,
         margin: { t: 10, r: 20, b: 30, l: 45 },
+        xaxis: { ...PLOTLY_LAYOUT.xaxis, type: "date" },
         yaxis: { ...PLOTLY_LAYOUT.yaxis, range: [0, 100] },
         shapes: [
             { type: "line", x0: rsiDates[0], x1: rsiDates[rsiDates.length - 1], y0: 70, y1: 70, line: { color: "rgba(255,82,82,0.3)", width: 1, dash: "dash" } },
@@ -1085,6 +1086,7 @@ function renderTechnicalAnalysis(data) {
     ], {
         ...PLOTLY_LAYOUT,
         margin: { t: 10, r: 20, b: 30, l: 45 },
+        xaxis: { ...PLOTLY_LAYOUT.xaxis, type: "date" },
     }, PLOTLY_CONFIG);
 
     // ── Historical IV chart (30/60/90 day) ──
@@ -1127,8 +1129,8 @@ function renderTechnicalAnalysis(data) {
         Plotly.newPlot("ta-iv-chart", ivTraces, {
             ...PLOTLY_LAYOUT,
             title: { text: "Historical Implied Volatility (Annualized %)", font: { size: 13, color: "#e8eaed" } },
-            xaxis: { ...PLOTLY_LAYOUT.xaxis },
-            yaxis: { ...PLOTLY_LAYOUT.yaxis, title: "IV (%)", rangemode: "tozero" },
+            xaxis: { ...PLOTLY_LAYOUT.xaxis, type: "date" },
+            yaxis: { ...PLOTLY_LAYOUT.yaxis, title: "Implied Volatility (%)", rangemode: "tozero" },
         }, PLOTLY_CONFIG);
     }
 }
@@ -1255,7 +1257,7 @@ async function renderEducationHub() {
             Plotly.newPlot("edu-payoff-chart", traces, {
                 ...PLOTLY_LAYOUT,
                 title: { text: "Projected Move & Payoff Simulation", font: { size: 13, color: "#e8eaed" } },
-                xaxis: { ...PLOTLY_LAYOUT.xaxis, title: "Underlying Price ($)" },
+                xaxis: { ...PLOTLY_LAYOUT.xaxis, title: "Underlying Price ($)", type: "linear" },
                 yaxis: { ...PLOTLY_LAYOUT.yaxis, title: "Profit/Loss ($)" },
                 shapes: [
                     { type: "line", x0: payoffData.prices[0], x1: payoffData.prices[payoffData.prices.length-1], y0: 0, y1: 0, line: { color: "#78909c", width: 1 } },
