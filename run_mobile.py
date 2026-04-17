@@ -21,9 +21,9 @@ def get_local_ip():
 def start_flask():
     """Start the Flask app via subprocess."""
     print("[*] Starting OptiGreeks Web Server...")
-    # Change host to 0.0.0.0 in server.py (We will assume it runs locally properly)
+    # Change host to 0.0.0.0 in app.py (We will assume it runs locally properly)
     env = os.environ.copy()
-    subprocess.Popen(["python", "server.py"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.Popen(["python", "app.py"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(3) # Give Flask a moment to boot up
 
 def start_local_server():
