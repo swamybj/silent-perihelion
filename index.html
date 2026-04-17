@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Advanced Options Trading Analysis Platform — Greeks-based strategy builder, backtesting, technical analysis, and probability distributions for Section 1256 and custom tickers.">
+    <meta name="theme-color" content="#0d1228">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="manifest" href="/manifest.json">
+    <title>OptiGreeks — Options Trading Analysis Platform</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+</head>
+<body>
+<div id="app">
+
+    <!-- ═══ Header ═══ -->
+    <header class="header">
+        <div class="header-brand">
+            <div class="header-logo">Ω</div>
+            <div>
+                <div class="header-title">OptiGreeks</div>
+                <div class="header-subtitle">Options Trading Analysis Platform</div>
+            </div>
+        </div>
+        <div class="header-status">
+            <div class="status-dot"></div>
+            <span id="header-rate">Risk-Free Rate: —</span>
+            <span>|</span>
+            <span id="header-time"></span>
+        </div>
+    </header>
+
+    <!-- ═══ Tab Navigation ═══ -->
+    <nav class="tab-nav" id="tab-nav">
+        <button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>
+        <button class="tab-btn" data-tab="strategy">🎯 Strategy Builder</button>
+        <button class="tab-btn" data-tab="backtest">⏱ Backtest</button>
+        <button class="tab-btn" data-tab="distribution">📈 Distribution</button>
+        <button class="tab-btn" data-tab="technical">🔬 Technical Analysis</button>
+        <button class="tab-btn" data-tab="education">📚 Strategy Guide</button>
+        <button class="tab-btn" data-tab="tickers">⚙️ Ticker Manager</button>
+    </nav>
+
+    <!-- ═══ Dashboard Tab ═══ -->
+    <div class="tab-content active" id="tab-dashboard">
+        <h2 class="section-title mb-16">📊 Market Overview</h2>
+        <div class="grid-auto mb-24" id="market-cards">
+            <div class="loading-overlay">
+                <div class="spinner spinner-lg"></div>
+                <div>Loading market data...</div>
+            </div>
+        </div>
+
+        <h2 class="section-title mb-16">🎯 Strategy Recommendations</h2>
+        <div class="form-row mb-16">
+            <div class="form-group">
+                <label class="form-label">Ticker</label>
+                <select class="form-select" id="dash-ticker-select">
+                    <option value="">Select a ticker...</option>
+                </select>
+            </div>
+            <div class="form-group" style="justify-content: flex-end;">
+                <button class="btn btn-primary" id="dash-recommend-btn" onclick="loadRecommendations()">
+                    Get Recommendations
+                </button>
+            </div>
+        </div>
+        <div id="recommendations-container">
+            <div class="empty-state">
+                <div class="empty-state-icon">🎯</div>
+                <div class="empty-state-text">Select a ticker to get strategy recommendations</div>
+                <div class="empty-state-hint">Based on technical analysis, IV levels, and market conditions</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Strategy Builder Tab ═══ -->
+    <div class="tab-content" id="tab-strategy">
+        <h2 class="section-title mb-16">🎯 Strategy Builder</h2>
+        <div class="card mb-20">
+            <div class="card-header">
+                <div class="card-title"><span class="icon">⚙️</span> Configure Strategy</div>
+            </div>
+            <div class="form-row mb-12">
+                <div class="form-group">
+                    <label class="form-label">Ticker</label>
+                    <select class="form-select" id="strat-ticker"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Strategy Type</label>
+                    <select class="form-select" id="strat-type"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Front Leg DTE</label>
+                    <input type="number" class="form-input" id="strat-front-dte" value="30" min="1" max="365">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Back Leg DTE</label>
+                    <input type="number" class="form-input" id="strat-back-dte" placeholder="Optional" min="1" max="365">
+                </div>
+            </div>
+            <div class="form-row mb-12">
+                <div class="form-group">
+                    <label class="form-label">Delta Target</label>
+                    <div class="range-container">
+                        <input type="range" class="range-slider" id="strat-delta" min="5" max="95" value="16" step="1">
+                        <span class="range-value" id="strat-delta-display">0.16</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Strike Price (optional)</label>
+                    <input type="number" class="form-input" id="strat-strike" placeholder="Auto-calculated">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">IV Override (%)</label>
+                    <input type="number" class="form-input" id="strat-iv" placeholder="Uses historical vol">
+                </div>
+            </div>
+            <button class="btn btn-primary" id="strat-analyze-btn" onclick="analyzeStrategy()">
+                🔍 Analyze Strategy
+            </button>
+        </div>
+
+        <div id="strategy-results">
+            <div class="empty-state">
+                <div class="empty-state-icon">🏗️</div>
+                <div class="empty-state-text">Configure and analyze a strategy above</div>
+                <div class="empty-state-hint">See payoff diagram, Greeks, exit rules, and P&L estimates</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Backtest Tab ═══ -->
+    <div class="tab-content" id="tab-backtest">
+        <h2 class="section-title mb-16">⏱ Historical Backtest</h2>
+        <div class="card mb-20">
+            <div class="card-header">
+                <div class="card-title"><span class="icon">📋</span> Backtest Parameters</div>
+            </div>
+            <div class="form-row mb-12">
+                <div class="form-group">
+                    <label class="form-label">Ticker</label>
+                    <select class="form-select" id="bt-ticker"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Strategy</label>
+                    <select class="form-select" id="bt-strategy"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Historical Data (Years)</label>
+                    <select class="form-select" id="bt-years"></select>
+                </div>
+            </div>
+            <div class="form-row mb-12">
+                <div class="form-group">
+                    <label class="form-label">Delta Target</label>
+                    <div class="range-container">
+                        <input type="range" class="range-slider" id="bt-delta" min="5" max="50" value="16" step="1">
+                        <span class="range-value" id="bt-delta-display">0.16</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Front Leg DTE</label>
+                    <input type="number" class="form-input" id="bt-front-dte" value="30" min="7" max="120">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Entry Interval (days)</label>
+                    <input type="number" class="form-input" id="bt-interval" value="5" min="1" max="30">
+                </div>
+            </div>
+            <div class="form-row mb-12">
+                <div class="form-group">
+                    <label class="form-label">Profit Target (%)</label>
+                    <input type="number" class="form-input" id="bt-profit-target" value="50" min="10" max="100">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Stop Loss (%)</label>
+                    <input type="number" class="form-input" id="bt-stop-loss" value="200" min="50" max="500">
+                </div>
+            </div>
+            <button class="btn btn-success" id="bt-run-btn" onclick="runBacktest()">
+                🚀 Run Backtest
+            </button>
+        </div>
+
+        <div id="backtest-results">
+            <div class="empty-state">
+                <div class="empty-state-icon">⏱</div>
+                <div class="empty-state-text">Configure parameters and run a backtest</div>
+                <div class="empty-state-hint">See win rate, equity curve, P&L distribution, and trade log</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Distribution Tab ═══ -->
+    <div class="tab-content" id="tab-distribution">
+        <h2 class="section-title mb-16">📈 Price Change Distribution</h2>
+        <div class="form-row mb-16">
+            <div class="form-group">
+                <label class="form-label">Ticker</label>
+                <select class="form-select" id="dist-ticker"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Historical Data (Years)</label>
+                <select class="form-select" id="dist-years"></select>
+            </div>
+            <div class="form-group" style="justify-content: flex-end;">
+                <button class="btn btn-primary" onclick="loadDistribution()">Analyze Distribution</button>
+            </div>
+        </div>
+        <div id="distribution-results">
+            <div class="empty-state">
+                <div class="empty-state-icon">📈</div>
+                <div class="empty-state-text">Select a ticker to view price change distribution</div>
+                <div class="empty-state-hint">Histogram from -5% to +5%, normal distribution fit, directional probabilities</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Technical Analysis Tab ═══ -->
+    <div class="tab-content" id="tab-technical">
+        <h2 class="section-title mb-16">🔬 Technical Analysis</h2>
+        <div class="form-row mb-16">
+            <div class="form-group">
+                <label class="form-label">Ticker</label>
+                <select class="form-select" id="ta-ticker"></select>
+            </div>
+            <div class="form-group" style="justify-content: flex-end;">
+                <button class="btn btn-primary" onclick="loadTechnicalAnalysis()">Run Analysis</button>
+            </div>
+        </div>
+        <div id="ta-results">
+            <div class="empty-state">
+                <div class="empty-state-icon">🔬</div>
+                <div class="empty-state-text">Select a ticker to run technical analysis</div>
+                <div class="empty-state-hint">RSI, MACD, SMA, ATR, Bollinger Bands, Fibonacci, composite signal</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Ticker Manager Tab ═══ -->
+    <div class="tab-content" id="tab-tickers">
+        <h2 class="section-title mb-16">⚙️ Ticker Manager</h2>
+        <div class="card mb-20">
+            <div class="card-header">
+                <div class="card-title"><span class="icon">➕</span> Add Ticker</div>
+            </div>
+            <div class="form-row mb-12">
+                <div class="form-group">
+                    <label class="form-label">Symbol</label>
+                    <input type="text" class="form-input" id="add-ticker-symbol" placeholder="e.g. AAPL, TSLA, GLD">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Name (optional)</label>
+                    <input type="text" class="form-input" id="add-ticker-name" placeholder="e.g. Apple Inc.">
+                </div>
+                <div class="form-group" style="justify-content: flex-end;">
+                    <button class="btn btn-success" onclick="addTicker()">Add Ticker</button>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title"><span class="icon">📋</span> Configured Tickers</div>
+            </div>
+            <div id="ticker-list">
+                <div class="loading-overlay"><div class="spinner"></div></div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- ═══ Education Hub Tab ═══ -->
+    <div class="tab-content" id="tab-education">
+        <h2 class="section-title mb-16">📚 Options Strategy Guide</h2>
+        <div class="form-row mb-16">
+            <div class="form-group">
+                <label class="form-label">Strategy</label>
+                <select class="form-select" id="edu-strategy" onchange="renderEducationHub()"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Ticker (for live simulation)</label>
+                <select class="form-select" id="edu-ticker" onchange="renderEducationHub()"></select>
+            </div>
+        </div>
+        <div id="education-results">
+            <div class="empty-state">
+                <div class="empty-state-icon">📚</div>
+                <div class="empty-state-text">Select a strategy to view its guide</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="app.js"></script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').then(registration => {
+                console.log('ServiceWorker registration successful');
+            }).catch(err => {
+                console.log('ServiceWorker registration failed: ', err);
+            });
+        });
+    }
+</script>
+</body>
+</html>
