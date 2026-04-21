@@ -130,7 +130,7 @@ async function loadStrategies() {
 }
 
 function populateTickerSelects() {
-    const selects = ["dash-ticker-select", "strat-ticker", "bt-ticker", "dist-ticker", "ta-ticker", "edu-ticker"];
+    const selects = ["dash-ticker-select", "strat-ticker", "bt-ticker", "dist-ticker", "ta-ticker", "edu-ticker", "adv-ticker"];
     selects.forEach((id) => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -1208,11 +1208,11 @@ async function renderEducationHub() {
                         </div>
                         <div>
                             <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase;">RSI (14)</div>
-                            <div style="font-family:'JetBrains Mono'; font-weight:700;">${recData.composite_signal.details.find(d => d.includes('RSI')) || 'N/A'}</div>
+                            <div style="font-family:'JetBrains Mono'; font-weight:700;">${(recData.composite_signal.details || []).find(d => d.includes('RSI')) || 'N/A'}</div>
                         </div>
                         <div>
                             <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase;">MACD</div>
-                            <div style="font-family:'JetBrains Mono'; font-weight:700;">${recData.composite_signal.details.find(d => d.includes('MACD')) || 'N/A'}</div>
+                            <div style="font-family:'JetBrains Mono'; font-weight:700;">${(recData.composite_signal.details || []).find(d => d.includes('MACD')) || 'N/A'}</div>
                         </div>
                     </div>
                 </div>`;
@@ -1336,4 +1336,288 @@ async function removeTicker(key) {
     } catch (e) {
         alert("Error removing ticker: " + e.message);
     }
+}
+
+// ═══ ADVANCED ANALYSIS ════════════════════════════════════════════════════
+
+async function loadAdvancedAnalysis() {
+    const ticker = document.getElementById("adv-ticker").value;
+    if (!ticker) return alert("Select a ticker.");
+
+    const btn = document.getElementById("adv-run-btn");
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Running AI & Risk Suite...';
+
+    const status = document.getElementById("adv-status");
+    status.innerHTML = '<div class="loading-overlay"><div class="spinner spinner-lg"></div><div>Running ML Forecast, Risk Models, and Simulations...</div></div>';
+
+    try {
+        // Fetch all advanced data in parallel
+        const [forecast, risk, simulation] = await Promise.all([
+            apiFetch(`/forecast/${ticker}`),
+            apiFetch(`/risk/${ticker}`),
+            apiFetch(`/simulate/${ticker}`)
+        ]);
+
+        renderAdvancedResults(forecast, risk, simulation);
+    } catch (e) {
+        document.getElementById("adv-status").innerHTML = `<div class="empty-state"><div class="empty-state-text" style="color:var(--loss)">Error: ${e.message}</div></div>`;
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = "Run Advanced Suite";
+    }
+}
+
+function renderAdvancedResults(forecastData, risk, simulation) {
+    // Clear status loader
+    document.getElementById("adv-status").innerHTML = "";
+
+    renderMethodology();
+    renderForecastMatrix(forecastData);
+    renderRiskIntelligence(risk);
+    renderIndicatorGrid(forecastData.technical_indicators);
+    renderMarketScenarios(simulation);
+    renderBestStrategies(forecastData);
+}
+
+function renderMethodology() {
+    const container = document.getElementById("adv-methodology-container");
+    container.innerHTML = `
+        <div class="methodology-box">
+            <h3><span class="icon">📖</span> Methodology & Methodology</h3>
+            <div class="grid-2">
+                <div>
+                    <h4 class="mb-8">Machine Learning (Random Forest)</h4>
+                    <p>Our <strong>AI Forecaster</strong> uses a Random Forest ensemble model trained on 2+ years of historical market data. It analyzes 15+ technical signals simultaneously to identify patterns associated with price reversals and trend continuations.</p>
+                </div>
+                <div>
+                    <h4 class="mb-8">Hybrid Risk Model (VaR)</h4>
+                    <p>Unlike standard Parametric VaR which assumes static distributions, our <strong>Hybrid Model</strong> adjusts risk buffers in real-time based on volatility expansion, trend strength (ADX), and RSI extremes.</p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderForecastMatrix(data) {
+    const container = document.getElementById("adv-forecast-container");
+    const forecasts = data ? data.forecasts : null;
+    if (!forecasts) return;
+    
+    let html = `
+        <h2 class="section-title mb-16">🤖 Multi-Horizon AI Price Targets</h2>
+        <div class="horizon-grid">
+    `;
+
+    [7, 14, 30].forEach(p => {
+        const f = forecasts[`horizon_${p}d`];
+        if (!f) return;
+        
+        const directionClass = f.direction.toLowerCase();
+        html += `
+            <div class="horizon-card">
+                <div class="horizon-label">${p} Day Outlook</div>
+                <div class="forecast-direction ${directionClass}">${f.direction === 'UP' ? '▲' : '▼'}</div>
+                <div class="metric-value ${directionClass}">${f.probability}%</div>
+                <div class="horizon-price">$${f.target_price}</div>
+                <div class="horizon-range">Expected: $${f.lower_bound} — $${f.upper_bound}</div>
+                <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 12px;">Accuracy: ${f.accuracy_score}%</div>
+            </div>
+        `;
+    });
+
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+function renderRiskIntelligence(risk) {
+    const container = document.getElementById("adv-risk-container");
+    container.innerHTML = `
+        <h2 class="section-title mb-16">🛡️ Risk Intelligence</h2>
+        <div class="card">
+            <div class="analysis-grid">
+                <div class="grid-col">
+                    <div class="risk-meter mb-16">
+                        <div class="metric-label">Hybrid VaR (95%)</div>
+                        <div class="metric-value loss">${risk.var.hybrid_var_pct}%</div>
+                        <div class="risk-level-bar">
+                            <div style="width: ${Math.min(Math.abs(risk.var.hybrid_var_pct) * 8, 100)}%; background: var(--loss); height: 100%;"></div>
+                        </div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">Dynamic Multiplier: ${risk.var.risk_multiplier}x</div>
+                    </div>
+                    <div class="risk-meter">
+                        <div class="metric-label">Standard VaR</div>
+                        <div class="metric-value neutral">${risk.var.base_var_pct}%</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted)">Historical baseline</div>
+                    </div>
+                </div>
+                <div class="grid-col">
+                    <h4 class="mb-12">Model Backtest Validation</h4>
+                    <table class="data-table">
+                        <thead><tr><th>Metric</th><th>Standard</th><th>Hybrid AI</th></tr></thead>
+                        <tbody>
+                            <tr><td>Breach Rate</td><td class="mono">${risk.backtest.standard_breach_rate}%</td><td class="mono profit">${risk.backtest.hybrid_breach_rate}%</td></tr>
+                            <tr><td>Total Breaches</td><td class="mono">${risk.backtest.standard_breaches}</td><td class="mono profit">${risk.backtest.hybrid_breaches}</td></tr>
+                            <tr><td>Testing Period</td><td colspan="2" class="text-center">${risk.backtest.days_tested} Days</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="mt-12" style="font-size: 0.78rem; color: var(--accent-cyan); text-align: center;">
+                        ✨ The Hybrid Model reduced outlier risk by <strong>${risk.backtest.improvement_breaches} breaches</strong> with dynamic volatility adjustment.
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderIndicatorGrid(ti) {
+    const container = document.getElementById("adv-indicators-container");
+    if (!ti) return;
+    
+    // Map signals to badges
+    const getBadge = (sig) => {
+        if (!sig) return 'neutral';
+        if (typeof sig === 'string') {
+            if (sig.includes('bull') || sig.includes('above') || sig.includes('overbought')) return 'bullish';
+            if (sig.includes('bear') || sig.includes('below') || sig.includes('oversold')) return 'bearish';
+        }
+        if (typeof sig === 'number') {
+            if (sig > 0) return 'bullish';
+            if (sig < 0) return 'bearish';
+        }
+        return 'neutral';
+    };
+
+    let html = `
+        <h2 class="section-title mb-16">🔬 Comprehensive Technical Dashboard</h2>
+        <div class="indicator-signal-grid">
+            <div class="indicator-signal-card">
+                <span class="form-label">RSI (${ti.rsi.value})</span>
+                <span class="badge badge-${getBadge(ti.rsi.signal)}">${ti.rsi.signal}</span>
+            </div>
+            <div class="indicator-signal-card">
+                <span class="form-label">MACD</span>
+                <span class="badge badge-${getBadge(ti.macd.signal_name)}">${ti.macd.signal_name}</span>
+            </div>
+            <div class="indicator-signal-card">
+                <span class="form-label">ADX (${ti.adx.adx})</span>
+                <span class="badge badge-${ti.adx.adx > 25 ? 'bullish' : 'neutral'}">${ti.adx.adx > 25 ? 'Trending' : 'Weak'}</span>
+            </div>
+            <div class="indicator-signal-card">
+                <span class="form-label">Bollinger %B</span>
+                <span class="badge badge-neutral">${ti.bollinger.bandwidth}%</span>
+            </div>
+            <div class="indicator-signal-card">
+                <span class="form-label">VWAP</span>
+                <span class="badge badge-neutral">$${ti.vwap.value}</span>
+            </div>
+            <div class="indicator-signal-card">
+                <span class="form-label">Stoch K</span>
+                <span class="badge badge-neutral">${ti.stoch.k}</span>
+            </div>
+            <div class="indicator-signal-card">
+                <span class="form-label">Composite Score</span>
+                <span class="badge badge-${getBadge(ti.composite.score)}">${ti.composite.score}</span>
+            </div>
+            <div class="indicator-signal-card">
+                <span class="form-label">Composite Signal</span>
+                <span class="badge badge-${getBadge(ti.composite.signal)}">${ti.composite.signal}</span>
+            </div>
+        </div>
+    `;
+    container.innerHTML = html;
+}
+
+function renderMarketScenarios(sim) {
+    const container = document.getElementById("adv-scenarios-container");
+    if (!sim || !sim.scenarios) return;
+    
+    container.innerHTML = `
+        <h2 class="section-title mb-16">🎢 Market Scenario Simulation</h2>
+        <div class="card">
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Scenario</th><th>Move</th><th>Target Price</th><th>Recommended Action</th></tr>
+                    </thead>
+                    <tbody>
+                        ${sim.scenarios.map(s => `
+                            <tr>
+                                <td><strong>${s.scenario}</strong></td>
+                                <td class="mono ${s.percent_move >= 0 ? 'profit' : 'loss'}">${s.percent_move > 0 ? '+' : ''}${s.percent_move}%</td>
+                                <td class="mono">$${s.target_price}</td>
+                                <td><span class="scenario-action ${s.recommended_action.includes('Buy') ? 'buy' : s.recommended_action.includes('Sell') ? 'sell' : 'neutral'}">${s.recommended_action}</span></td>
+                            </tr>
+                        `).join("")}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+function renderBestStrategies(data) {
+    const container = document.getElementById("adv-strategies-container");
+    if (!data || !data.technical_indicators || !data.technical_indicators.composite) return;
+    
+    const sig = data.technical_indicators.composite.signal || "NEUTRAL";
+    const ticker = data.ticker_key;
+
+    // Filter recommended strategies based on signal
+    let recs = [];
+    if (sig.includes("BULL") || sig.includes("BUY")) {
+        recs = [
+            { name: "Bull Put Spread", key: "bull-put-spread", desc: "For moderate bullish bias with high probability." },
+            { name: "Long Call", key: "long-call", desc: "For aggressive bullish direction." }
+        ];
+    } else if (sig.includes("BEAR") || sig.includes("SELL")) {
+        recs = [
+            { name: "Bear Call Spread", key: "bear-call-spread", desc: "For moderate bearish bias with high probability." },
+            { name: "Long Put", key: "long-put", desc: "For aggressive bearish direction." }
+        ];
+    } else {
+        recs = [
+            { name: "Iron Condor", key: "iron-condor", desc: "For rangebound price action." },
+            { name: "Iron Butterfly", key: "iron-butterfly", desc: "For very low volatility environments." }
+        ];
+    }
+
+    let html = `
+        <h2 class="section-title mb-16">🎯 AI Strategy Conviction: <span class="badge badge-neutral" style="font-size: 1rem; padding: 6px 16px;">${data.alignment}</span></h2>
+        <div class="grid-2">
+            ${recs.map(r => `
+                <div class="strategy-card" onclick="loadStrategyFromRec('${ticker}', '${r.key}')">
+                    <div class="strategy-card-header">
+                        <span class="strategy-card-name">${r.name}</span>
+                        <span class="badge badge-high">AI PICK</span>
+                    </div>
+                    <div class="strategy-card-desc">${r.desc}</div>
+                    <div class="strategy-card-reason">Click to load into Strategy Builder</div>
+                </div>
+            `).join("")}
+        </div>
+    `;
+    container.innerHTML = html;
+}
+
+function loadStrategyFromRec(ticker, strategyKey) {
+    // Switch to Strategy Builder tab
+    const tabBtn = document.querySelector(`.tab-btn[data-tab="strategy"]`);
+    if (tabBtn) tabBtn.click();
+    
+    // Set ticker
+    const tickerSelect = document.getElementById("strat-ticker");
+    if (tickerSelect) {
+        tickerSelect.value = ticker;
+        tickerSelect.dispatchEvent(new Event('change'));
+    }
+    
+    // Set strategy (assuming a selector exists or we just scroll there)
+    const stratSelect = document.getElementById("strat-name");
+    if (stratSelect) {
+        stratSelect.value = strategyKey;
+        stratSelect.dispatchEvent(new Event('change'));
+    }
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }

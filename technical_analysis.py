@@ -15,10 +15,12 @@ import pandas as pd
 import numpy as np
 
 try:
-    import pandas_ta as ta
+    import pandas_ta as ta_lib
     HAS_PANDAS_TA = True
 except ImportError:
     HAS_PANDAS_TA = False
+
+import ta
 
 from config import TA_CONFIG
 
@@ -125,6 +127,91 @@ def compute_fibonacci_levels(df, lookback_days=60):
         "direction": direction,
         "levels": levels,
     }
+
+
+def _compute_stoch(df, k=14, d=3):
+    """Compute Stochastic Oscillator."""
+    s = ta.momentum.StochasticOscillator(df['High'], df['Low'], df['Close'], window=k, smooth_window=d)
+    return s.stoch(), s.stoch_signal()
+
+
+def _compute_obv(df):
+    """Compute On-Balance Volume."""
+    return ta.volume.OnBalanceVolumeIndicator(df['Close'], df['Volume']).on_balance_volume()
+
+
+def _compute_vwap(df, window=14):
+    """Compute Volume Weighted Average Price (rolling proxy)."""
+    return ta.volume.VolumeWeightedAveragePrice(df['High'], df['Low'], df['Close'], df['Volume'], window=window).volume_weighted_average_price()
+
+
+def _compute_adx(df, window=14):
+    """Compute Average Directional Index."""
+    a = ta.trend.ADXIndicator(df['High'], df['Low'], df['Close'], window=window)
+    return a.adx(), a.adx_pos(), a.adx_neg()
+
+
+def _compute_ema(df, period):
+    """Compute Exponential Moving Average."""
+    return ta.trend.EMAIndicator(df['Close'], window=period).ema_indicator()
+
+
+def _compute_support_resistance(df, window=20):
+    """Identify local support and resistance."""
+    low_roll = df['Low'].rolling(window=window, center=True).min()
+    high_roll = df['High'].rolling(window=window, center=True).max()
+    return low_roll.iloc[-window-1:].min(), high_roll.iloc[-window-1:].max()
+
+
+def get_augmented_df(df):
+    """Returns a copy of the DataFrame with all indicator columns added."""
+    df = df.copy()
+    
+    # EMAs
+    df['EMA_9'] = _compute_ema(df, 9)
+    df['EMA_26'] = _compute_ema(df, 26)
+    df['EMA_50'] = _compute_ema(df, 50)
+    df['EMA_200'] = _compute_ema(df, 200)
+    
+    # MACD
+    macd, signal, hist = _compute_macd(df)
+    df['MACD'] = macd
+    df['MACD_Signal'] = signal
+    df['MACD_Hist'] = hist
+    
+    # RSI
+    df['RSI'] = _compute_rsi(df)
+    
+    # Stoch
+    k, d = _compute_stoch(df)
+    df['Stoch_K'] = k
+    df['Stoch_D'] = d
+    
+    # OBV
+    df['OBV'] = _compute_obv(df)
+    
+    # VWAP
+    df['VWAP'] = _compute_vwap(df)
+    
+    # ADX
+    adx, pos, neg = _compute_adx(df)
+    df['ADX'] = adx
+    df['ADX_Pos'] = pos
+    df['ADX_Neg'] = neg
+    
+    # ATR
+    df['ATR'] = _compute_atr(df)
+    
+    # BB
+    upper, mid, lower = _compute_bollinger(df)
+    df['BB_High'] = upper
+    df['BB_Mid'] = mid
+    df['BB_Low'] = lower
+    df['BB_Width'] = (upper - lower) / mid
+    
+    return df
+
+
 
 
 def run_technical_analysis(df):
@@ -274,7 +361,7 @@ def run_technical_analysis(df):
         "close": [round(float(v), 2) for v in chart_data["Close"].tolist()],
         "volume": [int(v) if not pd.isna(v) else 0 for v in chart_data["Volume"].tolist()],
     }
-    # SMA overlay data
+    # ── SMA Overlay ──
     for period in TA_CONFIG["sma_periods"]:
         sma = _compute_sma(df, period)
         result["price_history"][f"sma_{period}"] = [
@@ -282,64 +369,114 @@ def run_technical_analysis(df):
             for v in sma.tail(120).tolist()
         ]
 
-    # ── Composite Signal ──────────────────────────────────────────────────
-    score = 0
-    signals_detail = []
+    # ── ADVANCED INDICATORS ──
+    # EMAs
+    ema_9 = _compute_ema(df, 9)
+    ema_26 = _compute_ema(df, 26)
+    ema_50 = _compute_ema(df, 50)
+    ema_200 = _compute_ema(df, 200)
+    
+    # Stochastics
+    stoch_k, stoch_d = _compute_stoch(df)
+    result["stoch"] = {
+        "k": round(float(stoch_k.iloc[-1]), 2) if not pd.isna(stoch_k.iloc[-1]) else None,
+        "d": round(float(stoch_d.iloc[-1]), 2) if not pd.isna(stoch_d.iloc[-1]) else None,
+    }
+    
+    # OBV
+    obv = _compute_obv(df)
+    result["obv"] = {"value": float(obv.iloc[-1]) if not pd.isna(obv.iloc[-1]) else None}
+    
+    # VWAP
+    vwap = _compute_vwap(df)
+    result["vwap"] = {"value": round(float(vwap.iloc[-1]), 2) if not pd.isna(vwap.iloc[-1]) else None}
+    
+    # ADX
+    adx, adx_pos, adx_neg = _compute_adx(df)
+    result["adx"] = {
+        "adx": round(float(adx.iloc[-1]), 2) if not pd.isna(adx.iloc[-1]) else None,
+        "pos": round(float(adx_pos.iloc[-1]), 2) if not pd.isna(adx_pos.iloc[-1]) else None,
+        "neg": round(float(adx_neg.iloc[-1]), 2) if not pd.isna(adx_neg.iloc[-1]) else None,
+    }
+    
+    # Support / Resistance
+    supp, resis = _compute_support_resistance(df)
+    result["levels"] = {"support": round(float(supp), 2), "resistance": round(float(resis), 2)}
 
-    # SMA signals
-    for period in TA_CONFIG["sma_periods"]:
-        key = f"sma_{period}_signal"
-        if key in sma_data:
-            if sma_data[key] == "above":
-                score += 1
-                signals_detail.append(f"Price above SMA {period}: Bullish")
-            else:
-                score -= 1
-                signals_detail.append(f"Price below SMA {period}: Bearish")
+    # ── COMPOSITE SCORING (AZIMUTHAL-STELLAR STYLE) ──
+    latest = df.iloc[-1]
+    prev = df.iloc[-2]
+    
+    scores = {}
+    weights = {'MACD': 0.15, 'RSI': 0.10, 'Bollinger': 0.10, 'Stochastic': 0.10, 'Trend': 0.15, 'Cross': 0.10, 'OBV': 0.05, 'VWAP': 0.05, 'ADX': 0.10}
+    
+    # 1. MACD
+    if result["macd"]["macd"] > result["macd"]["signal"]: scores['MACD'] = 1
+    else: scores['MACD'] = -1
+    
+    # 2. RSI
+    if rsi_val:
+        if rsi_val < 30: scores['RSI'] = 1
+        elif rsi_val > 70: scores['RSI'] = -1
+        else: scores['RSI'] = 0
+        
+    # 3. Bollinger
+    if result["bollinger"]["lower"] and current_price < result["bollinger"]["lower"]: scores['Bollinger'] = 1
+    elif result["bollinger"]["upper"] and current_price > result["bollinger"]["upper"]: scores['Bollinger'] = -1
+    else: scores['Bollinger'] = 0
+    
+    # 4. Stochastic
+    if result["stoch"]["k"]:
+        if result["stoch"]["k"] < 20: scores['Stochastic'] = 1
+        elif result["stoch"]["k"] > 80: scores['Stochastic'] = -1
+        else: scores['Stochastic'] = 0
+        
+    # 5. Trend (EMA 200)
+    if current_price > ema_200.iloc[-1]: scores['Trend'] = 0.5
+    else: scores['Trend'] = -0.5
+    
+    # 6. EMA Cross
+    if ema_50.iloc[-1] > ema_200.iloc[-1]: scores['Cross'] = 1
+    else: scores['Cross'] = -1
+    
+    # 7. OBV
+    if obv.iloc[-1] > obv.iloc[-2]: scores['OBV'] = 0.5
+    else: scores['OBV'] = -0.5
+    
+    # 8. VWAP
+    if result["vwap"]["value"] and current_price > result["vwap"]["value"]: scores['VWAP'] = 1
+    else: scores['VWAP'] = -1
+    
+    # 9. ADX
+    if result["adx"]["adx"] and result["adx"]["adx"] > 25:
+        if result["adx"]["pos"] > result["adx"]["neg"]: scores['ADX'] = 1
+        else: scores['ADX'] = -1
+    else: scores['ADX'] = 0
 
-    # RSI signal
-    if rsi_signal == "overbought":
-        score -= 1
-        signals_detail.append("RSI > 70: Overbought (Bearish)")
-    elif rsi_signal == "oversold":
-        score += 1
-        signals_detail.append("RSI < 30: Oversold (Bullish)")
-    else:
-        signals_detail.append(f"RSI {rsi_val:.1f}: Neutral" if rsi_val else "RSI: N/A")
-
-    # MACD signal
-    if macd_signal == "bullish":
-        score += 1
-        signals_detail.append("MACD above signal: Bullish")
-    elif macd_signal == "bearish":
-        score -= 1
-        signals_detail.append("MACD below signal: Bearish")
-
-    # Bollinger Band position
-    if result["bollinger"]["upper"] and result["bollinger"]["lower"]:
-        if current_price > result["bollinger"]["upper"]:
-            score -= 0.5
-            signals_detail.append("Price above upper Bollinger: Overbought")
-        elif current_price < result["bollinger"]["lower"]:
-            score += 0.5
-            signals_detail.append("Price below lower Bollinger: Oversold")
-
-    # Overall signal
-    if score >= 2:
-        overall = "STRONG_BULLISH"
-    elif score >= 0.5:
-        overall = "BULLISH"
-    elif score <= -2:
-        overall = "STRONG_BEARISH"
-    elif score <= -0.5:
-        overall = "BEARISH"
+    # Total Score
+    total_score = sum(scores.get(k, 0) * weights[k] for k in weights)
+    
+    # Refined Recommendation
+    is_above_emas = current_price > ema_50.iloc[-1] and current_price > ema_200.iloc[-1]
+    is_below_emas = current_price < ema_50.iloc[-1] and current_price < ema_200.iloc[-1]
+    
+    if is_above_emas and result["macd"]["signal_name"] == "bullish" and 50 < rsi_val < 75 and result["adx"]["adx"] > 20:
+        overall = "STRONG BUY"
+    elif is_below_emas and result["macd"]["signal_name"] == "bearish" and 25 < rsi_val < 50 and result["adx"]["adx"] > 20:
+        overall = "STRONG SELL"
+    elif current_price > ema_200.iloc[-1] and (current_price < ema_50.iloc[-1] or rsi_val < 45):
+        overall = "BUY DIP"
+    elif total_score > 0.25:
+        overall = "BUY"
+    elif total_score < -0.25:
+        overall = "SELL"
     else:
         overall = "NEUTRAL"
 
     result["composite_signal"] = {
-        "score": round(score, 1),
+        "score": round(total_score, 2),
         "signal": overall,
-        "details": signals_detail,
+        "detail_scores": scores
     }
 
     return result

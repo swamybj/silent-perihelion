@@ -918,3 +918,171 @@ h4 { font-size: 0.95rem; }
     
     .data-table { display: block; overflow-x: auto; white-space: nowrap; }
 }
+
+/* ── Advanced Analysis Components ────────────────────────────────────────── */
+.forecast-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+}
+
+.forecast-indicator::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+}
+
+.forecast-indicator.up::before { background: var(--gradient-green); }
+.forecast-indicator.down::before { background: var(--gradient-red); }
+
+.forecast-direction {
+    font-size: 3rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+
+.forecast-indicator.up .forecast-direction { color: var(--profit); }
+.forecast-indicator.down .forecast-direction { color: var(--loss); }
+
+.forecast-prob {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-bright);
+}
+
+.risk-meter {
+    padding: 20px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.risk-level-bar {
+    height: 10px;
+    background: var(--bg-primary);
+    border-radius: 5px;
+    overflow: hidden;
+    display: flex;
+}
+
+.scenario-action {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.scenario-action.buy { background: var(--profit-bg); color: var(--profit); }
+.scenario-action.sell { background: var(--loss-bg); color: var(--loss); }
+.scenario-action.neutral { background: rgba(59, 130, 246, 0.1); color: var(--accent-blue); }
+
+.analysis-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 16px;
+}
+
+@media (max-width: 992px) {
+    .analysis-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Enhanced Advanced Analysis Styles ─────────────────────────────────── */
+.methodology-box {
+    background: rgba(59, 130, 246, 0.05);
+    border: 1px solid var(--border-active);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.methodology-box h3 {
+    color: var(--accent-blue);
+    margin-bottom: 12px;
+}
+
+.methodology-box p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.indicator-signal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.indicator-signal-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.horizon-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.horizon-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    border: 1px solid var(--border);
+    text-align: center;
+    transition: transform var(--transition-normal);
+}
+
+.horizon-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--accent-blue);
+}
+
+.horizon-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+
+.horizon-price {
+    font-size: 1.5rem;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    margin: 8px 0;
+}
+
+.horizon-range {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.conviction-banner {
+    background: var(--gradient-blue);
+    color: white;
+    padding: 16px;
+    border-radius: var(--radius-lg);
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    box-shadow: var(--shadow-glow-blue);
+}
+
+@media (max-width: 768px) {
+    .horizon-grid { grid-template-columns: 1fr; }
+}

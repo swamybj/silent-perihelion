@@ -5,3 +5,6 @@ pandas>=1.5.0
 numpy>=1.24.0
 scipy>=1.10.0
 gunicorn==21.2.0
+ta
+scikit-learn
+statsmodels

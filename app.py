@@ -22,10 +22,13 @@ from config import (
     HOST, PORT, DEBUG,
 )
 from greeks_engine import calc_all_greeks, calc_implied_volatility, find_strike_by_delta
-from technical_analysis import run_technical_analysis
+from technical_analysis import run_technical_analysis, get_augmented_df
 from strategy_engine import recommend_strategies, build_strategy_legs, STRATEGIES
 from backtest_engine import run_backtest
 from distribution_analysis import analyze_distribution
+from forecaster import MLForecaster
+from risk_engine import RiskEngine
+from simulator import MarketSimulator
 
 
 # ── App Setup ─────────────────────────────────────────────────────────────────
@@ -382,6 +385,117 @@ def get_distribution(ticker_key):
         result["years_options"] = BACKTEST_YEARS_OPTIONS
 
         return jsonify(result)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+# ── API: AI Forecast ──────────────────────────────────────────────────────────
+
+@app.route("/api/forecast/<ticker_key>", methods=["GET"])
+def get_ai_forecast(ticker_key):
+    """Run ML-based 30-day forecast."""
+    symbol = _get_symbol(ticker_key)
+    try:
+        df = _fetch_historical_data(symbol, years=2)
+        if df is None or len(df) < 60:
+            return jsonify({"error": "Not enough data"}), 404
+
+        # Augmented DF for ML features
+        df = get_augmented_df(df)
+        
+        # 1. Multi-horizon predictions
+        forecaster = MLForecaster(df)
+        forecasts = forecaster.predict_multi_horizon(periods=[7, 14, 30])
+        
+        # 2. Extract Indicator Details for UI Grid
+        ta_results = run_technical_analysis(df)
+        
+        # 3. Best Strategy Suggestion Logic
+        # Analyze alignment of forecasts
+        directions = [f['direction'] for f in forecasts.values()]
+        alignment = "Mixed"
+        if all(d == "UP" for d in directions): alignment = "Strong Bullish"
+        elif all(d == "DOWN" for d in directions): alignment = "Strong Bearish"
+        
+        result = {
+            "ticker_key": ticker_key,
+            "symbol": symbol,
+            "current_price": ta_results["current_price"],
+            "forecasts": forecasts,
+            "alignment": alignment,
+            "technical_indicators": {
+                "rsi": ta_results["rsi"],
+                "macd": ta_results["macd"],
+                "bollinger": ta_results["bollinger"],
+                "stoch": ta_results["stoch"],
+                "adx": ta_results["adx"],
+                "vwap": ta_results["vwap"],
+                "obv": ta_results["obv"],
+                "levels": ta_results["levels"],
+                "composite": ta_results["composite_signal"]
+            }
+        }
+        return jsonify(result)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+# ── API: Risk Management (Hybrid VaR) ─────────────────────────────────────────
+
+@app.route("/api/risk/<ticker_key>", methods=["GET"])
+def get_risk_analysis(ticker_key):
+    """Get Hybrid VaR and risk backtest."""
+    symbol = _get_symbol(ticker_key)
+    try:
+        df = _fetch_historical_data(symbol, years=2)
+        if df is None or len(df) < 60:
+            return jsonify({"error": "Not enough data"}), 404
+
+        # Augmented DF for risk model features
+        df = get_augmented_df(df)
+        
+        engine = RiskEngine(df)
+        var_data = engine.calculate_hybrid_var(confidence=0.95)
+        backtest = engine.backtest_risk_model(confidence=0.95)
+        
+        return jsonify({
+            "ticker_key": ticker_key,
+            "symbol": symbol,
+            "var": var_data,
+            "backtest": backtest
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+# ── API: Market Simulation (What-If) ───────────────────────────────────────────
+
+@app.route("/api/simulate/<ticker_key>", methods=["GET"])
+def get_simulation(ticker_key):
+    """Run what-if scenarios."""
+    symbol = _get_symbol(ticker_key)
+    try:
+        df = _fetch_historical_data(symbol, years=1)
+        if df is None or len(df) == 0:
+            return jsonify({"error": "No data"}), 404
+
+        current_price = float(df["Close"].iloc[-1])
+        # Estimate daily volatility score
+        returns = df["Close"].pct_change().dropna()
+        vol_score = float(returns.std())
+        
+        sim = MarketSimulator(symbol, current_price, volatility_score=vol_score)
+        scenarios = sim.run_scenarios()
+        
+        return jsonify({
+            "ticker_key": ticker_key,
+            "symbol": symbol,
+            "current_price": round(current_price, 2),
+            "scenarios": scenarios
+        })
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
